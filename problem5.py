@@ -23,14 +23,14 @@ class agent(object):
             cliff.reset()
             terminating_state=False
             curr_state=cliff.get_state()
-            action=self.greedy_policy(curr_state)                
+            action=self.action_probs(curr_state)
             print("action taken is ",action)
             while(terminating_state==False):
                 cliff.update_agent_position(action)
                 new_state=cliff.get_state()
                 print("current state is ",curr_state,"new state is ",new_state)
                 reward,terminating_state=cliff.get_reward()
-                print("reward is ", reward)                   
+                print("reward is ", reward)
                 self.q_table[curr_state,action]+=alpha*(reward+gamma*np.amax(self.q_table[new_state,:])-self.q_table[curr_state,action])
                 print("episode ",episode)
                 if(terminating_state==True and reward==-100):
@@ -74,7 +74,15 @@ class agent(object):
         else:
             action=np.argmax(self.q_table[state,:])
         return action
-        
+    
+    def action_probs(self, state, epsilon=0.1):
+        next_state_probs = [epsilon/4] * 4
+        best_action = self.greedy_policy(state)
+        next_state_probs[best_action] += (1.0 - epsilon)
+        if np.random.random()>epsilon:
+            return best_action
+        next_state_probs.remove(best_action)
+        return next_state_probs[np.random.choice(3)]
     
 class cliffwalkingenvironment(object):
     def __init__(self):
@@ -122,15 +130,23 @@ class cliffwalkingenvironment(object):
 if __name__ == "__main__":
     environment=cliffwalkingenvironment()
     q_learning=agent()
+    sarsa_agent=agent()
     
-    episode_rewards=q_learning.q_learning()
-    AvgReward=np.zeros((500,1))
+    q_episode_rewards=q_learning.q_learning()
+    sarsa_episode_rewards=sarsa_agent.sarsa()
+    avg_q_reward=np.zeros((500,1))
+    avg_sarsa_reward=np.zeros((500,1))
     for i in range(10,500):
-        avg=sum(episode_rewards[i-10:i])/10
-        AvgReward[i,0]=avg
+        avg=sum(q_episode_rewards[i-10:i])/10
+        avg_q_reward[i,0]=avg
+    
+    for i in range(10, 500):
+        avg=sum(sarsa_episode_rewards[i-10:i])/10
+        avg_sarsa_reward[i,0]=avg
         
     plt.title("Sarsa vs Q Learning - Average Rewards")
-    plt.plot(AvgReward[10:500])
+    plt.plot(avg_q_reward[10:500])
+    plt.plot(avg_sarsa_reward[10:500])
     plt.ylabel('Sum of rewards during episode')
     plt.xlabel('Episodes')
     #plt.legend(agentNames, loc=4)
