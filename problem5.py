@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar  3 20:19:33 2022
-
-@author: Tyler
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -12,6 +5,8 @@ class agent(object):
     def __init__(self):
         #all 48 states has the value for each action initialised at 0
         self.q_table=np.zeros((48,4))
+        self.states=[]
+        self.episode_reward=np.zeros(500)
                 
 
     def update_q_table(self,q_table,state,action,reward,next_state_value,gamma=1,alpha=0.1):
@@ -19,25 +14,59 @@ class agent(object):
         q_table[state,action]=updated_value
         return q_table
     
-    def sarsa(self,gamma=1,alpha=0.1):
-        reward=0
-        return reward
+    def sarsa(self,episodes=500,gamma=1,alpha=0.1,epsilon=0.1):
+        cliff=cliffwalkingenvironment()#build environment
+        terminating_state=False
+        episode_rewards=np.zeros(episodes)
+        for episode in range(episodes):
+            cum_reward=0
+            cliff.reset()
+            terminating_state=False
+            curr_state=cliff.get_state()
+            action=self.greedy_policy(curr_state)                
+            print("action taken is ",action)
+            while(terminating_state==False):
+                cliff.update_agent_position(action)
+                new_state=cliff.get_state()
+                print("current state is ",curr_state,"new state is ",new_state)
+                reward,terminating_state=cliff.get_reward()
+                print("reward is ", reward)                   
+                self.q_table[curr_state,action]+=alpha*(reward+gamma*np.amax(self.q_table[new_state,:])-self.q_table[curr_state,action])
+                print("episode ",episode)
+                if(terminating_state==True and reward==-100):
+                    cum_reward=-100
+                else:
+                    cum_reward+=reward#reward so far for the episode
+            episode_rewards[episode]=cum_reward
+                
+        return episode_rewards
     
     def q_learning(self,episodes=500,gamma=1,alpha=0.1,epsilon=0.1):
+        cliff=cliffwalkingenvironment()#build environment
+        terminating_state=False
+        episode_rewards=np.zeros(episodes)
         for episode in range(episodes):
-            state=0
-            for episode in range(episodes):
-                env=environment()
-                terminating_state=False
-                cum_reward=0
-                while(terminating_state==False):
-                    state=env.update_agent_position(-1)
-                    action=self.greedy_policy(state)
-                    next_state=env.update_agent_position(action)
-                    reward,terminating_state=env.get_reward()
-                    cum_reward+=reward
-        
-        return action
+            cum_reward=0
+            cliff.reset()
+            terminating_state=False
+            while(terminating_state==False):
+                curr_state=cliff.get_state()
+                action=self.greedy_policy(curr_state)
+                print("action taken is ",action)
+                cliff.update_agent_position(action)
+                new_state=cliff.get_state()
+                print("current state is ",curr_state,"new state is ",new_state)
+                reward,terminating_state=cliff.get_reward()
+                print("reward is ", reward)                   
+                self.q_table[curr_state,action]+=alpha*(reward+gamma*np.amax(self.q_table[new_state,:])-self.q_table[curr_state,action])
+                print("episode ",episode)
+                if(terminating_state==True and reward==-100):
+                    cum_reward=-100
+                else:
+                    cum_reward+=reward#reward so far for the episode
+            episode_rewards[episode]=cum_reward
+                
+        return episode_rewards
     
     def greedy_policy(self,state,epsilon=0.1):
         if(np.random.random()<epsilon):
@@ -45,6 +74,7 @@ class agent(object):
         else:
             action=np.argmax(self.q_table[state,:])
         return action
+        
     
 class cliffwalkingenvironment(object):
     def __init__(self):
@@ -52,6 +82,10 @@ class cliffwalkingenvironment(object):
         self.agentx=0
         self.agenty=3
         
+    def get_state(self):
+        state=12*self.agenty+self.agentx
+        return state        
+    
     def build_environment(self):
         environment=-np.ones((4,12))
         environment[3,1:11]=-100
@@ -59,15 +93,13 @@ class cliffwalkingenvironment(object):
     
     def update_agent_position(self,action):
         if(action==0 and self.agenty>0):#up
-            self.agentx=self.agenty-1
+            self.agenty=self.agenty-1
         elif(action==1 and self.agentx>0):#left
             self.agentx=self.agentx-1
         elif(action==2 and self.agentx<11):#right
             self.agentx=self.agentx+1
         elif(action==3 and self.agenty<3):#down
-            self.agentx=self.agenty+1
-        state=12*self.agentx+self.agenty
-        return state
+            self.agenty=self.agenty+1
         
     def get_reward(self):
         #gets reward for the transition. terminates the episode at the goal state or cliff
@@ -75,15 +107,31 @@ class cliffwalkingenvironment(object):
         reward=-1
         if(self.state_space[self.agenty,self.agentx]==-100):
             terminating_state=True
-            reward=-100
+
         elif(self.agenty==3 and self.agentx==11):
             terminating_state=True
             
-        return reward,terminating_state
+        return self.state_space[self.agenty,self.agentx],terminating_state
+    
+    def reset(self):
+        self.agentx=0
+        self.agenty=3
         
         
         
 if __name__ == "__main__":
     environment=cliffwalkingenvironment()
-    sarsa=agent()
     q_learning=agent()
+    
+    episode_rewards=q_learning.q_learning()
+    AvgReward=np.zeros((500,1))
+    for i in range(10,500):
+        avg=sum(episode_rewards[i-10:i])/10
+        AvgReward[i,0]=avg
+        
+    plt.title("Sarsa vs Q Learning - Average Rewards")
+    plt.plot(AvgReward[10:500])
+    plt.ylabel('Sum of rewards during episode')
+    plt.xlabel('Episodes')
+    #plt.legend(agentNames, loc=4)
+    plt.show()
