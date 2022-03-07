@@ -15,31 +15,31 @@ class agent(object):
         return q_table
     
     def sarsa(self,episodes=500,gamma=1,alpha=0.1,epsilon=0.1):
-        cliff=cliffwalkingenvironment()#build environment
-        terminating_state=False
+        cliff=cliffwalkingenvironment()
         episode_rewards=np.zeros(episodes)
         for episode in range(episodes):
-            cum_reward=0
             cliff.reset()
             terminating_state=False
             curr_state=cliff.get_state()
-            action=self.action_probs(curr_state)
-            print("action taken is ",action)
+            action=self.greedy_policy(curr_state)
+            cum_reward=0
             while(terminating_state==False):
                 cliff.update_agent_position(action)
                 new_state=cliff.get_state()
                 print("current state is ",curr_state,"new state is ",new_state)
                 reward,terminating_state=cliff.get_reward()
                 print("reward is ", reward)
-                self.q_table[curr_state,action]+=alpha*(reward+gamma*np.amax(self.q_table[new_state,:])-self.q_table[curr_state,action])
-                print("episode ",episode)
+                next_action=self.greedy_policy(new_state)
+                self.q_table[curr_state,action]+=alpha*(reward+gamma*self.q_table[new_state,next_action]-self.q_table[curr_state,action])
+                curr_state=new_state
+                action=next_action
                 if(terminating_state==True and reward==-100):
                     cum_reward=-100
                 else:
                     cum_reward+=reward#reward so far for the episode
             episode_rewards[episode]=cum_reward
-                
         return episode_rewards
+            
     
     def q_learning(self,episodes=500,gamma=1,alpha=0.1,epsilon=0.1):
         cliff=cliffwalkingenvironment()#build environment
@@ -83,6 +83,7 @@ class agent(object):
             return best_action
         next_state_probs.remove(best_action)
         return next_state_probs[np.random.choice(3)]
+        
     
 class cliffwalkingenvironment(object):
     def __init__(self):
