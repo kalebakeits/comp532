@@ -1,1 +1,1 @@
-# Sutton book problem solution for SARSA and 
+# Sutton book problem solutions
